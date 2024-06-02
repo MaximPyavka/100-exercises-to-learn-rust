@@ -1,3 +1,4 @@
+use std::path;
 use std::sync::mpsc::{sync_channel, Receiver, SyncSender};
 
 // TODO: Implement the patching functionality.
@@ -35,7 +36,16 @@ impl TicketStoreClient {
         Ok(response_receiver.recv().unwrap())
     }
 
-    pub fn update(&self, ticket_patch: TicketPatch) -> Result<(), OverloadedError> {}
+    pub fn update(&self, ticket_patch: TicketPatch) -> Result<(), OverloadedError> {
+        let (response_sender, response_receiver) = sync_channel(1);
+        self.sender
+            .try_send(Command::Update {
+                patch: ticket_patch,
+                response_channel: response_sender,
+            })
+            .map_err(|_| OverloadedError)?;
+        Ok(response_receiver.recv().unwrap())
+    }
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -85,7 +95,24 @@ pub fn server(receiver: Receiver<Command>) {
                 patch,
                 response_channel,
             }) => {
-                todo!()
+                if patch.description.is_some() || patch.title.is_some() || patch.status.is_some() {
+                    match store.get_mut(patch.id) {
+                        Some(ticket) => {
+                            if patch.description.is_some() {
+                                ticket.description = patch.description.unwrap();
+                            }
+                            if patch.title.is_some() {
+                                ticket.title = patch.title.unwrap();
+                            }
+
+                            if patch.status.is_some() {
+                                ticket.status = patch.status.unwrap();
+                            }
+                        }
+                        _ => {}
+                    }
+                };
+                response_channel.send(());
             }
             Err(_) => {
                 // There are no more senders, so we can safely break
