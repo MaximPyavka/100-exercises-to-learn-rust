@@ -1387,6 +1387,7 @@ dependencies = [
 name = "outro_08"
 version = "0.1.0"
 dependencies = [
+ "common",
  "http 1.1.0",
  "httparse",
  "lazy_static",
